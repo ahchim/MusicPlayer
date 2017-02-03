@@ -3,10 +3,14 @@ package com.ahchim.android.musicplayer;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
-import android.provider.ContactsContract;
 import android.provider.MediaStore;
+import android.util.Log;
 
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.ArrayList;
 
 /**
@@ -14,15 +18,21 @@ import java.util.ArrayList;
  */
 
 public class DataLoader {
-    private ArrayList<Music> datas = new ArrayList<>();
-    private Context context;
+    // datas를 두개의 activity에서 공유하기 위해 static 형태로 변경
+    private static ArrayList<Music> datas = new ArrayList<>();
 
-    public DataLoader(Context context){
-        this.context = context;
+    // 헐 우와 얠 static으로 해주면 private 지키고 static 장점은 가져갈 수 있겠네.
+    // static 변수인 datas를 체크해서 null이면 load를 실행
+    public static ArrayList<Music> get(Context context) {
+        if(datas == null || datas.size() == 0){
+            load(context);
+        }
+        return datas;
     }
 
-
-    public void load(){
+    // load도 private하고 static하게 바꿔준다. get 통해서만 부르기때문에
+    // load 함수는 get 함수를 통해서만 접근한다.
+    private static void load(Context context){
         // 1. 데이터에 접근하기 위해 ContentResolver를 불러온다.
         ContentResolver resolver = context.getContentResolver();
 
@@ -68,6 +78,11 @@ public class DataLoader {
                 idx = cursor.getColumnIndex(proj[3]);
                 music.setArtist(cursor.getString(idx));
 
+                music.setAlbum_image(getAlbumImageSimple(music.getAlbum_id()));
+                //music.setBitmap_image(getAlbumImageBitmap(music.getAlbum_id()));
+
+                music.setUri(getMusicUri(music.getId()));
+
                 // datas
                 datas.add(music);
             }
@@ -78,7 +93,43 @@ public class DataLoader {
         }
     }
 
-    public ArrayList<Music> get() {
-        return datas;
+    // 음악 id로 uri를 가져오는 함수
+    private static Uri getMusicUri(String music_id){
+        Uri content_uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+        return Uri.withAppendedPath(content_uri, music_id); // 쉼표로 여러개의 Uri를 넣으면 다 합쳐서 1개의 Uri로 만들어줌
+    }
+
+
+    // 가장 간단하게 앨범이미지를 가져오는 방법
+    // 문제점 : 실제 앨범데이터만 있어서 이미지를 불러오지 못하는 경우가 있다.
+    // load 안에 있으니까 얘도 static하게 바꿔준다.
+    private static Uri getAlbumImageSimple(String album_id){
+        return Uri.parse("content://media/external/audio/albumart/"+ album_id);
+    }
+    // @Deprecated 써서 가로줄쓰려고 했으나... 간단해져서 안지움'ㅅ'
+
+    // 안써 안쓴다고!
+    @Deprecated
+    private static Bitmap getAlbumImageBitmap(Context context, String album_id){
+        // 1. 앨범아이디로 Uri 생성
+        Uri uri = getAlbumImageSimple(album_id);
+        // 2. 컨텐트 리졸버 가져오기
+        ContentResolver resolver = context.getContentResolver();
+
+        try {
+            // 3. 리졸버에서 스트림열기
+            InputStream is = resolver.openInputStream(uri);
+
+            // 4. BitmapFactory를 통해 이미지데이터를 가져온다. 디코딩(복호화)
+            Bitmap image = BitmapFactory.decodeStream(is);
+
+            return image;
+        } catch (FileNotFoundException e) {
+            Log.e("getAlbumImageBitmap()", "비트맵 파일을 가져올 수 없습니다.");
+            // 로거클래스에 file append해서 로그내용을 찍어놓을 수 있다. 꿀팁..
+            e.printStackTrace();
+        }
+
+        return null;
     }
 }

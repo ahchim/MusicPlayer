@@ -14,6 +14,9 @@ import android.widget.Toast;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
+    // Player 액티비티와 adapter를 공유하기 위해 static으로 선언했다.
+    // 이게 최선인지 일단 고민해보자..
+    public static MusicAdapter adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,13 +69,15 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(this, "프로그램을 실행합니다.", Toast.LENGTH_SHORT).show();
 
         // 3.1 데이터를 불러온다
-        DataLoader loader = new DataLoader(this);
-        loader.load();
-        ArrayList<Music> datas = loader.get();
+//        DataLoader loader = new DataLoader(this);
+//        loader.load();
+//        ArrayList<Music> datas = loader.get();
+        // 싱글톤 패턴으로 바꿔보기
+        ArrayList<Music> datas = DataLoader.get(this);
 
         // 리사이클러뷰 세팅
         RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
-        MusicAdapter adapter = new MusicAdapter(datas, this);
+        adapter = new MusicAdapter(datas, this);
         recyclerView.setAdapter(adapter);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
     }
