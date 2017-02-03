@@ -47,20 +47,25 @@ public class Util {
      * @param now_Msec
      * @return
      */
-    public static String milliSecToTime(int now_Msec) {
-        int now_Sec = (int) (now_Msec / 1000);
+    public static String milliSecToTime(long now_Msec) {
+        long now_Sec = (long) (now_Msec / 1000);
 
-        int hour = (int) (now_Sec / 3600);
-        int min = (int) ((now_Sec % 3600) / 60);
-        int sec = (int) (now_Sec % 60);
+        long hour = (long) (now_Sec / 3600);
+        long min = (long) ((now_Sec % 3600) / 60);
+        long sec = (long) (now_Sec % 60);
 
+        long msec = (long) (now_Msec - now_Sec*1000);
+
+        // 시간이 있을 때만 시간 표시.
         if(hour > 0) {
             return String.format("%02d", hour) + ":"
                     + String.format("%02d", min) + ":"
-                    + String.format("%02d", sec);
+                    + String.format("%02d", sec) + ":"
+                    + String.format("%02d", msec);
         } else{
             return String.format("%02d", min) + ":"
-                    + String.format("%02d", sec);
+                    + String.format("%02d", sec) + ":"
+                    + String.format("%02d", msec);
         }
     }
 }

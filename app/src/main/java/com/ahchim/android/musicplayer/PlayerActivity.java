@@ -30,9 +30,7 @@ public class PlayerActivity extends AppCompatActivity {
     TextView txtCurrent, txtDuration;
 
     // 플레이어 상태 플래그
-    private static final int PLAY = 0;
-    private static final int PAUSE = 1;
-    private static final int STOP = 2;
+    private static final int PLAY = 0, PAUSE = 1, STOP = 2;
 
     // 현재 플레이어 상태
     private static int playStatus = STOP;
@@ -148,7 +146,6 @@ public class PlayerActivity extends AppCompatActivity {
         public void onPageScrollStateChanged(int state) { }
     };
 
-
     View.OnClickListener click = new View.OnClickListener(){
         @Override
         public void onClick(View v) {
@@ -194,6 +191,12 @@ public class PlayerActivity extends AppCompatActivity {
         // 현재 플레이시간을 0으로 설정
         txtCurrent.setText("00:00");
 
+        player.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                next();
+            }
+        });
         // Log.i("전체음악길이", Util.milliSecToTime(player.getDuration()));
         play();
     }
@@ -218,7 +221,7 @@ public class PlayerActivity extends AppCompatActivity {
 //                                // 핸들러어어어
 //                            }
 //                            // 너무 상세하게 체크가 돌아가면 렉을 유발하기 때문에 1초텀줌
-//                            try { Thread.sleep(1000); } catch (InterruptedException e) { }
+//                            try { Thread.sleep(1); } catch (InterruptedException e) { }
 //                        }
 //                    }
 //                }.start();
@@ -232,21 +235,20 @@ public class PlayerActivity extends AppCompatActivity {
                         while (playStatus < STOP) {
                             if (player != null) {
                                 // 이 부분은 핸들러랑 같은동작이다!! 뿌에에에엥!
-                                // 메인쓰레드에서 동작하도록 Runnable 객체를 메인쓰레드에 던져주는 역할을 한다.
+                                // 메인쓰레드에서 동작하도록 Runnable instance를 메인쓰레드에 던져주는 역할을 한다.
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        // 플레이어가 도중에 종료되면 예외가 발생한다.
-                                        if(player!=null) {
+                                        try{ // 플레이어가 도중에 종료되면 예외가 발생한다.
                                             seekBar.setProgress(player.getCurrentPosition());
                                             txtCurrent.setText(Util.milliSecToTime(player.getCurrentPosition()));
-                                        }
+                                        } catch (IllegalStateException e) { e.printStackTrace(); }
                                     }
                                 });
                                 // 여기까지 핸들러했다! 쁏
                             }
                             // 너무 상세하게 체크가 돌아가면 렉을 유발하기 때문에 1초텀줌
-                            try { Thread.sleep(1000); } catch (InterruptedException e) { }
+                            try { Thread.sleep(1); } catch (InterruptedException e) { }
                         }
                     }
                 }.start();

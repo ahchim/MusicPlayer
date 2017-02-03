@@ -69,12 +69,10 @@ public class MusicAdapter extends RecyclerView.Adapter<MusicAdapter.Holder>{
         Animation animation = AnimationUtils.loadAnimation(context, android.R.anim.slide_in_left);
         holder.cardView.setAnimation(animation);
     }
-
     @Override
     public int getItemCount() {
         return datas.size();
     }
-
 
     public class Holder extends RecyclerView.ViewHolder{
         private TextView txtTitle, txtArtist;
