@@ -40,9 +40,9 @@ public class PlayerActivity extends AppCompatActivity {
     int position = 0;  // 현재 음악 위치
 
     // 핸들러 상태 플래그
-//    public static final int PROGRESS_SET = 101;
-//
-//    // 핸들러
+    public static final int PROGRESS_SET = 101;
+
+    // 핸들러
 //    Handler handler = new Handler(){
 //        @Override
 //        public void handleMessage(Message msg){
@@ -68,6 +68,8 @@ public class PlayerActivity extends AppCompatActivity {
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
         seekBar = (SeekBar) findViewById(R.id.seekBar);
+        seekBar.setOnSeekBarChangeListener(seekBarChangeListener);
+
         txtCurrent = (TextView) findViewById(R.id.txtCurrent);
         txtDuration = (TextView) findViewById(R.id.txtDuration);
 
@@ -98,18 +100,54 @@ public class PlayerActivity extends AppCompatActivity {
         // 3. 뷰페이저 아답터 연결
         viewPager.setAdapter(adapter);
 
-        // 4. 특정 페이지 호출
+        // 리스너만 연결하고 init에 플레이어 초기화만 매번 해주면 페이저 넘어가면서 노래 바뀐다.
+        // 4. 뷰페이저 리스너 연결
+        viewPager.addOnPageChangeListener(viewPagerListener);
+
+        // 5. 특정 페이지 호출
         Intent intent = getIntent();
         if(intent != null){
             Bundle bundle = intent.getExtras();
             position = bundle.getInt("position");
 
-            // 실제 페이지 값 계산 처리
-
-            // 페이지 이동
-            viewPager.setCurrentItem(position);
+            // 음원길이 등의 음악 기본정보를 설정해 준다.
+            // 첫페이지일 경우만 init 호출
+            // 이유 : 첫페이지가 아닐경우 위의 setCurrentItem에 의해서 ViewPager의 onPageSelected가 호출된다.
+            // 0번이 아닌 n페이지일 경우 0페이지 들어갔다가 n페이지가 호출됨.
+            // 0페이지에서 0페이지로 갈 경우 리스너가 동작을 안해서 이짓함.
+            if(position == 0) init();
+            // 실제 페이지 값 계산 처리 - 페이지 이동
+            else viewPager.setCurrentItem(position);
         }
     }
+
+    // 씤바seekbar 체인지 리스너
+    SeekBar.OnSeekBarChangeListener seekBarChangeListener= new SeekBar.OnSeekBarChangeListener() {
+        @Override
+        public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+            // User한테 터치받았을 때만 플레이어가 seekBar 움직임 동작을 한다.
+            if(player!=null && fromUser) player.seekTo(progress);
+        }
+
+        @Override
+        public void onStartTrackingTouch(SeekBar seekBar) { }
+        @Override
+        public void onStopTrackingTouch(SeekBar seekBar) { }
+    };
+
+    // 뷰페이저 체인지 리스너
+    ViewPager.OnPageChangeListener viewPagerListener = new ViewPager.OnPageChangeListener() {
+        @Override
+        public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) { }
+        @Override
+        public void onPageSelected(int position) {
+            PlayerActivity.this.position = position;
+            init();
+        }
+        @Override
+        public void onPageScrollStateChanged(int state) { }
+    };
+
 
     View.OnClickListener click = new View.OnClickListener(){
         @Override
@@ -128,21 +166,41 @@ public class PlayerActivity extends AppCompatActivity {
         }
     };
 
+    private void init(){
+        // 뷰페이저로 이동할 경우 플레이어에 세팅된 값을 해제한후 로직을 실행한다.
+        if(player != null) {
+            // 플레이 상태를 STOP으로 변경
+            playStatus = STOP;
+            // 아이콘을 플레이 버튼으로 변경
+            btnPlay.setImageResource(android.R.drawable.ic_media_play);
+            player.release();
+        }
+
+        Uri musicUri = datas.get(position).getUri();
+
+        // 플레이어에 음원 세팅
+        player = MediaPlayer.create(this, musicUri);          // 미디어플레이어도 싱글톤이당
+        player.setLooping(false);  // 반복여부
+
+        // seekBar 길이
+        seekBar.setMax(player.getDuration());
+
+        // seekBar 초기화
+        seekBar.setProgress(0);
+
+        // 전체 플레이시간 설정
+        txtDuration.setText(Util.milliSecToTime(player.getDuration()));
+
+        // 현재 플레이시간을 0으로 설정
+        txtCurrent.setText("00:00");
+
+        // Log.i("전체음악길이", Util.milliSecToTime(player.getDuration()));
+        play();
+    }
+
     private void play(){
         switch(playStatus){
             case STOP:
-                Uri musicUri = datas.get(position).getUri();
-
-                // 플레이어에 음원 세팅
-                player = MediaPlayer.create(this, musicUri);          // 미디어플레이어도 싱글톤이당
-
-                player.setLooping(false);  // 반복여부
-
-                // seekBar 길이
-                seekBar.setMax(player.getDuration());
-                txtDuration.setText(Util.milliSecToTime(player.getDuration()));
-                Log.i("전체음악길이", Util.milliSecToTime(player.getDuration()));
-
                 player.start();
 
                 playStatus = PLAY;
@@ -155,7 +213,9 @@ public class PlayerActivity extends AppCompatActivity {
 //                    public void run () {
 //                        while (playStatus < STOP) {
 //                            if (player != null) {
+//                                // 핸들러!
 //                                handler.sendEmptyMessage(PROGRESS_SET);
+//                                // 핸들러어어어
 //                            }
 //                            // 너무 상세하게 체크가 돌아가면 렉을 유발하기 때문에 1초텀줌
 //                            try { Thread.sleep(1000); } catch (InterruptedException e) { }
@@ -166,25 +226,27 @@ public class PlayerActivity extends AppCompatActivity {
                 // sub thread를 생성해서 mediaplayer의 현재 포지션 값으로 seekbar를 변경해준다. 매 1초마다
                 // runOnUiThread를 사용하면 핸들러 없이 직접 쓰레드 동작 가능하다.
                 // while문을 바깥에 씌워주지 않으면 런메소드 사용 후 메시지큐에 들어가지 못하고 헛돈다.
-                new Thread(){
+                new Thread() {
                     @Override
                     public void run () {
                         while (playStatus < STOP) {
                             if (player != null) {
-                                try {
-                                    runOnUiThread(new Runnable() {
-                                        @Override
-                                        public void run() {
+                                // 이 부분은 핸들러랑 같은동작이다!! 뿌에에에엥!
+                                // 메인쓰레드에서 동작하도록 Runnable 객체를 메인쓰레드에 던져주는 역할을 한다.
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        // 플레이어가 도중에 종료되면 예외가 발생한다.
+                                        if(player!=null) {
                                             seekBar.setProgress(player.getCurrentPosition());
                                             txtCurrent.setText(Util.milliSecToTime(player.getCurrentPosition()));
                                         }
-                                    });
-                                    // 너무 상세하게 체크가 돌아가면 렉을 유발하기 때문에 1초텀줌
-                                    Thread.sleep(1000);
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
+                                    }
+                                });
+                                // 여기까지 핸들러했다! 쁏
                             }
+                            // 너무 상세하게 체크가 돌아가면 렉을 유발하기 때문에 1초텀줌
+                            try { Thread.sleep(1000); } catch (InterruptedException e) { }
                         }
                     }
                 }.start();
@@ -208,11 +270,12 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void prev(){
-
+        if(position > 0) viewPager.setCurrentItem(position - 1);
     }
     private void next(){
-
+        if(position < datas.size()) viewPager.setCurrentItem(position + 1);
     }
+
 
     // 함수 오버라이드해서 player 해제한다.
     @Override
